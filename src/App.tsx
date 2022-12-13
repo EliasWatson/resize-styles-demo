@@ -101,27 +101,10 @@ export const App: React.FC = () => {
       newHeight = Math.min(maxHeight, newHeight);
       newHeights[channelIndex] = newHeight;
 
-      const channelsSortedAscByHeight = channelHeights
-        .map((_height, i) => i)
-        .sort((a, b) => channelHeights[a] - channelHeights[b]);
+      const heightSum = newHeights.reduce((sum, n) => sum + n, 0);
+      const heightModifier = CANVAS_HEIGHT / heightSum;
 
-      let heightSum = newHeights.reduce(
-        (sum, n, i) => i !== channelIndex ? sum + n : sum,
-        0
-      );
-      let remainingHeight = CANVAS_HEIGHT - newHeight;
-
-      for (const i of channelsSortedAscByHeight) {
-        if (i === channelIndex) continue;
-
-        const heightScale = remainingHeight / heightSum;
-        const newHeight2 = Math.max(MIN_HEIGHT, newHeights[i] * heightScale);
-
-        heightSum -= newHeight2;
-        remainingHeight -= newHeight2;
-
-        newHeights[i] = newHeight2;
-      }
+      newHeights = newHeights.map((n) => n * heightModifier);
     } else if (resizeStyle === "neighbor") {
       const neighborIndex = channelIndex + 1;
       const neighborHeight = channelHeights[neighborIndex];
