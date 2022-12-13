@@ -1,5 +1,5 @@
 import './App.css';
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Stage} from "@inlet/react-pixi";
 import {Channel} from "./Channel";
 import {nodeLowerRange, nodeUpperRange} from "./bitwise";
@@ -140,6 +140,10 @@ export const App: React.FC = () => {
   const onReset = useCallback(() => {
     setChannelHeights((currHeights) => [...currHeights].fill(CANVAS_HEIGHT / currHeights.length));
   }, []);
+
+  useEffect(() => {
+    onReset();
+  }, [onReset, resizeStyle]);
 
   return (
     <div>
