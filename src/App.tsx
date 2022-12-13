@@ -2,6 +2,7 @@ import './App.css';
 import React, {useCallback, useRef, useState} from 'react';
 import {Stage} from "@inlet/react-pixi";
 import {Channel} from "./Channel";
+import {nodeLowerRange, nodeUpperRange} from "./bitwise";
 
 const CANVAS_WIDTH: number = 900;
 const CANVAS_HEIGHT: number = 600;
@@ -61,8 +62,10 @@ export const App: React.FC = () => {
       channelIndex -= 1;
     }
 
-    if (resizeStyle === "neighbor" && channelIndex === channelCount - 1) {
-      return;
+    if (channelIndex === channelCount - 1) {
+      if (resizeStyle === "neighbor" || resizeStyle === "bsp") {
+        return;
+      }
     }
 
     const channelY = channelYs[channelIndex];
@@ -84,9 +87,10 @@ export const App: React.FC = () => {
     const channelBottomY = channelY + channelHeight;
 
     const newChannelBottomY = e.clientY + pointerOffset;
-    const heightDelta = newChannelBottomY - channelBottomY;
-
+    let heightDelta = newChannelBottomY - channelBottomY;
     let newHeight = Math.max(MIN_HEIGHT, channelHeight + heightDelta);
+    heightDelta = newHeight - channelHeight;
+
     let newHeights = [...channelHeights];
 
     if (resizeStyle === "absolute") {
@@ -123,8 +127,24 @@ export const App: React.FC = () => {
       const neighborHeight = channelHeights[neighborIndex];
 
       newHeights[neighborIndex] = neighborHeight - heightDelta;
+      newHeights[channelIndex] = newHeight;
     } else if (resizeStyle === "bsp") {
-      // TODO
+      const [lowerStart, lowerEnd] = nodeLowerRange(channelIndex);
+      const [upperStart, upperEnd] = nodeUpperRange(channelIndex);
+
+      const lowerCount = (lowerEnd - lowerStart) + 1;
+      const upperCount = (upperEnd - upperStart) + 1;
+
+      const lowerDeltaPer = heightDelta / lowerCount;
+      const upperDeltaPer = -heightDelta / upperCount;
+
+      for (let i = lowerStart; i <= lowerEnd; i++) {
+        newHeights[i] = channelHeights[i] + lowerDeltaPer;
+      }
+
+      for (let i = upperStart; i <= upperEnd; i++) {
+        newHeights[i] = channelHeights[i] + upperDeltaPer;
+      }
     }
 
     setChannelHeights(newHeights);
