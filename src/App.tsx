@@ -10,10 +10,13 @@ const CANVAS_HEIGHT: number = 600;
 
 const MIN_HEIGHT: number = 16;
 
-type ResizeStyle = "absolute" | "relative" | "relative-below" | "neighbor" | "bsp";
+type ResizeStyle = "absolute" | "relative" | "relative-partial" | "neighbor" | "bsp";
+
+type Edge = "top" | "bottom";
 
 type DragState = {
   channelIndex: number;
+  edge: Edge;
   pointerOffset: number;
 };
 
@@ -57,10 +60,15 @@ export const App: React.FC = () => {
     if (channelIndex === -1) return;
 
     // Check if on the top half of the channel
+    let edge: Edge = "bottom";
     if (e.clientY < channelYs[channelIndex] + (channelHeights[channelIndex] / 2)) {
-      if (channelIndex === 0) return;
+      if (resizeStyle === "relative-partial") {
+        edge = "top";
+      } else {
+        if (channelIndex === 0) return;
 
-      channelIndex -= 1;
+        channelIndex -= 1;
+      }
     }
 
     if (channelIndex === channelCount - 1) {
@@ -69,26 +77,36 @@ export const App: React.FC = () => {
       }
     }
 
+    if (
+      resizeStyle === "relative-partial" && (
+        (channelIndex === 0 && edge === "top") ||
+        (channelIndex === channelCount - 1 && edge === "bottom")
+      )
+    ) {
+      return;
+    }
+
     const channelY = channelYs[channelIndex];
     const channelHeight = channelHeights[channelIndex];
     const channelBottomY = channelY + channelHeight;
 
     dragStateRef.current = {
       channelIndex,
-      pointerOffset: channelBottomY - e.clientY,
+      edge,
+      pointerOffset: edge === "bottom" ? channelBottomY - e.clientY : channelY - e.clientY,
     };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (dragStateRef.current === undefined) return;
-    const { channelIndex, pointerOffset } = dragStateRef.current;
+    const { channelIndex, edge, pointerOffset } = dragStateRef.current;
 
     const channelY = channelYs[channelIndex];
     const channelHeight = channelHeights[channelIndex];
     const channelBottomY = channelY + channelHeight;
 
     const newChannelBottomY = e.clientY + pointerOffset;
-    let heightDelta = newChannelBottomY - channelBottomY;
+    let heightDelta = edge === "bottom" ? newChannelBottomY - channelBottomY : channelY - newChannelBottomY;
     let newHeight = Math.max(MIN_HEIGHT, channelHeight + heightDelta);
     heightDelta = newHeight - channelHeight;
 
@@ -106,18 +124,34 @@ export const App: React.FC = () => {
       const heightModifier = CANVAS_HEIGHT / heightSum;
 
       newHeights = newHeights.map((n) => n * heightModifier);
-    } else if (resizeStyle === "relative-below") {
+    } else if (resizeStyle === "relative-partial") {
       const requiredHeightByOthers =
-        ((channelCount - channelIndex - 1) * MIN_HEIGHT) + sum(newHeights.slice(0, channelIndex));
+        edge === "bottom"
+          ? ((channelCount - channelIndex - 1) * MIN_HEIGHT) + sum(newHeights.slice(0, channelIndex))
+          : (channelIndex * MIN_HEIGHT) + sum(newHeights.slice(channelIndex + 1));
+
       const maxHeight = CANVAS_HEIGHT - requiredHeightByOthers;
       newHeight = Math.min(maxHeight, newHeight);
       newHeights[channelIndex] = newHeight;
 
-      const heightSumAbove = sum(newHeights.slice(0, channelIndex + 1));
+      const heightSumAbove = sum(newHeights.slice(0, channelIndex));
       const heightSumBelow = sum(newHeights.slice(channelIndex + 1));
-      const heightModifier = (CANVAS_HEIGHT - heightSumAbove) / heightSumBelow;
 
-      newHeights = newHeights.map((n, i) => i > channelIndex ? n * heightModifier : n);
+      const heightModifierAbove =
+        edge === "top"
+          ? (CANVAS_HEIGHT - heightSumBelow - newHeight) / heightSumAbove
+          : 1;
+
+      const heightModifierBelow =
+        edge === "bottom"
+          ? (CANVAS_HEIGHT - heightSumAbove - newHeight) / heightSumBelow
+          : 1;
+
+      newHeights = newHeights.map((n, i) => {
+        if (i < channelIndex) return n * heightModifierAbove;
+        else if (i > channelIndex) return n * heightModifierBelow;
+        else return n;
+      });
     } else if (resizeStyle === "neighbor") {
       const neighborIndex = channelIndex + 1;
       const neighborHeight = channelHeights[neighborIndex];
@@ -171,7 +205,7 @@ export const App: React.FC = () => {
       <div style={{display: "flex", flexDirection: "row", gap: "8px"}}>
         <button onClick={() => setResizeStyle("absolute")}>Absolute</button>
         <button onClick={() => setResizeStyle("relative")}>Relative</button>
-        <button onClick={() => setResizeStyle("relative-below")}>Relative Below</button>
+        <button onClick={() => setResizeStyle("relative-partial")}>Relative Partial</button>
         <button onClick={() => setResizeStyle("neighbor")}>Neighbor</button>
         <button onClick={() => setResizeStyle("bsp")}>BSP</button>
         <div>{resizeStyle}</div>
