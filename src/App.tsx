@@ -3,6 +3,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Stage} from "@inlet/react-pixi";
 import {Channel} from "./Channel";
 import {nodeLowerRange, nodeUpperRange} from "./bitwise";
+import {sum} from 'lodash-es';
 
 const CANVAS_WIDTH: number = 900;
 const CANVAS_HEIGHT: number = 600;
@@ -101,7 +102,7 @@ export const App: React.FC = () => {
       newHeight = Math.min(maxHeight, newHeight);
       newHeights[channelIndex] = newHeight;
 
-      const heightSum = newHeights.reduce((sum, n) => sum + n, 0);
+      const heightSum = sum(newHeights);
       const heightModifier = CANVAS_HEIGHT / heightSum;
 
       newHeights = newHeights.map((n) => n * heightModifier);
