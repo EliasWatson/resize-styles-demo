@@ -10,7 +10,7 @@ const CANVAS_HEIGHT: number = 600;
 
 const MIN_HEIGHT: number = 16;
 
-type ResizeStyle = "absolute" | "relative" | "neighbor" | "bsp";
+type ResizeStyle = "absolute" | "relative" | "relative-below" | "neighbor" | "bsp";
 
 type DragState = {
   channelIndex: number;
@@ -106,6 +106,18 @@ export const App: React.FC = () => {
       const heightModifier = CANVAS_HEIGHT / heightSum;
 
       newHeights = newHeights.map((n) => n * heightModifier);
+    } else if (resizeStyle === "relative-below") {
+      const requiredHeightByOthers =
+        ((channelCount - channelIndex - 1) * MIN_HEIGHT) + sum(newHeights.slice(0, channelIndex));
+      const maxHeight = CANVAS_HEIGHT - requiredHeightByOthers;
+      newHeight = Math.min(maxHeight, newHeight);
+      newHeights[channelIndex] = newHeight;
+
+      const heightSumAbove = sum(newHeights.slice(0, channelIndex + 1));
+      const heightSumBelow = sum(newHeights.slice(channelIndex + 1));
+      const heightModifier = (CANVAS_HEIGHT - heightSumAbove) / heightSumBelow;
+
+      newHeights = newHeights.map((n, i) => i > channelIndex ? n * heightModifier : n);
     } else if (resizeStyle === "neighbor") {
       const neighborIndex = channelIndex + 1;
       const neighborHeight = channelHeights[neighborIndex];
@@ -159,6 +171,7 @@ export const App: React.FC = () => {
       <div style={{display: "flex", flexDirection: "row", gap: "8px"}}>
         <button onClick={() => setResizeStyle("absolute")}>Absolute</button>
         <button onClick={() => setResizeStyle("relative")}>Relative</button>
+        <button onClick={() => setResizeStyle("relative-below")}>Relative Below</button>
         <button onClick={() => setResizeStyle("neighbor")}>Neighbor</button>
         <button onClick={() => setResizeStyle("bsp")}>BSP</button>
         <div>{resizeStyle}</div>
